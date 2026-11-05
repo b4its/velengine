@@ -1,0 +1,113 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        UID: ${UID:-1000}
+        GID: ${GID:-1000}
+    container_name: ${COMPOSE_PROJECT_NAME:-machine}-app
+    restart: unless-stopped
+    user: "${UID:-1000}:${GID:-1000}"
+    volumes:
+      - .:/var/www/html
+    environment:
+      - APP_ENV=local
+      - APP_DEBUG=true
+      - DB_CONNECTION=mysql
+      - DB_HOST=db
+      - DB_PORT=3306
+      - DB_DATABASE=${DB_DATABASE:-machine}
+      - DB_USERNAME=${DB_USERNAME:-machine}
+      - DB_PASSWORD=${DB_PASSWORD:-secret}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - CACHE_STORE=redis
+      - SESSION_DRIVER=redis
+      - QUEUE_CONNECTION=redis
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      - machine-network
+
+  nginx:
+    image: nginx:alpine
+    container_name: ${COMPOSE_PROJECT_NAME:-machine}-nginx
+    restart: unless-stopped
+    ports:
+      # Port Web: Standar Laravel (8000) + 99 = 8099
+      - "${APP_PORT:-8099}:80"
+      # Port Vite Dev Server: Standar (5173) + 99 = 5272
+      - "${VITE_PORT:-5272}:5173"
+    environment:
+      - PROJECT_DIR=${PROJECT_DIR:-.}
+    volumes:
+      - .:/var/www/html:ro
+      - ./docker/nginx/templates:/etc/nginx/templates:ro
+    depends_on:
+      - app
+    networks:
+      - machine-network
+
+  db:
+    image: mysql:8.4
+    container_name: ${COMPOSE_PROJECT_NAME:-machine}-db
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE:-machine}
+      MYSQL_USER: ${DB_USERNAME:-machine}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-secret}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root}
+    ports:
+      # Port MySQL: Standar (3306) + 99 = 3405
+      - "${DB_PORT:-3405}:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u$$MYSQL_USER -p$$MYSQL_PASSWORD || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    networks:
+      - machine-network
+
+  phpmyadmin:
+    image: phpmyadmin:latest
+    container_name: ${COMPOSE_PROJECT_NAME:-machine}-pma
+    restart: unless-stopped
+    environment:
+      PMA_HOST: db
+      PMA_PORT: 3306
+      UPLOAD_LIMIT: 256M
+    ports:
+      # Port phpMyAdmin: Standar (8080) + 99 = 8179
+      - "${PMA_PORT:-8179}:80"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - machine-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: ${COMPOSE_PROJECT_NAME:-machine}-redis
+    restart: unless-stopped
+    ports:
+      # Port Redis: Standar (6379) + 99 = 6478
+      - "${REDIS_PORT:-6478}:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - machine-network
+
+networks:
+  machine-network:
+    driver: bridge
+
+volumes:
+  db_data:
+  redis_data:

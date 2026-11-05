@@ -1,0 +1,13 @@
+.env
+.env.backup
+.env.production
+vendor/
+node_modules/
+public/build/
+public/hot
+storage/*.key
+.phpunit.result.cache
+.DS_Store
+Thumbs.db
+projects/*
+!projects/.gitkeep

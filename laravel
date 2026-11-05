@@ -1,0 +1,86 @@
+#!/usr/bin/env bash
+# ==============================================================================
+# Laravel Installer CLI Wrapper (Dockerized)
+# Jalankan langsung di host: ./laravel new <nama_projek>
+# Otomatis membuat projek di dalam folder projects/, setup Docker lengkap
+# (Nginx, PHP-FPM, MySQL, PMA, Redis, Node/NPM) serta Makefile.
+# ==============================================================================
+set -e
+
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+cd "$DIR"
+
+# Periksa ketersediaan TTY
+TTY_FLAGS=""
+if [ -t 0 ] && [ -t 1 ]; then
+    TTY_FLAGS="-it"
+fi
+
+# Deteksi argumen nama projek jika perintah adalah 'new'
+IS_NEW=0
+TARGET_ARG=""
+BEFORE_DIRS=""
+WORK_DIR="/var/www/html"
+
+if [ "$1" = "new" ]; then
+    IS_NEW=1
+    for arg in "${@:2}"; do
+        if [[ ! "$arg" =~ ^- ]]; then
+            TARGET_ARG="$arg"
+            break
+        fi
+    done
+
+    # Jika bukan inisialisasi di root (bukan '.'), arahkan ke folder projects/
+    if [ "$TARGET_ARG" != "." ]; then
+        mkdir -p "$DIR/projects"
+        WORK_DIR="/var/www/html/projects"
+        if [ -n "$TARGET_ARG" ]; then
+            CLEAN_TARGET="${TARGET_ARG#projects/}"
+            ARGS=()
+            for a in "$@"; do
+                if [ "$a" = "$TARGET_ARG" ]; then
+                    ARGS+=("$CLEAN_TARGET")
+                else
+                    ARGS+=("$a")
+                fi
+            done
+            set -- "${ARGS[@]}"
+            TARGET_ARG="$CLEAN_TARGET"
+        else
+            BEFORE_DIRS=$(find "$DIR/projects" -maxdepth 1 -type d 2>/dev/null | sort)
+        fi
+    fi
+fi
+
+# Jalankan perintah laravel installer di container
+set +e
+if docker compose ps --status running --services 2>/dev/null | grep -qx "app"; then
+    docker compose exec $TTY_FLAGS -w "$WORK_DIR" app laravel "$@"
+    EXIT_CODE=$?
+else
+    docker compose run --rm $TTY_FLAGS -w "$WORK_DIR" app laravel "$@"
+    EXIT_CODE=$?
+fi
+set -e
+
+# Jika laravel new sukses, pastikan scaffolding Docker & Makefile terpasang
+if [ $EXIT_CODE -eq 0 ] && [ $IS_NEW -eq 1 ]; then
+    if [ -z "$TARGET_ARG" ]; then
+        AFTER_DIRS=$(find "$DIR/projects" -maxdepth 1 -type d 2>/dev/null | sort)
+        TARGET_ARG=$(comm -13 <(echo "$BEFORE_DIRS") <(echo "$AFTER_DIRS") | head -n1 | sed 's|^\./||')
+    fi
+
+    if [ "$TARGET_ARG" != "." ] && [ -n "$TARGET_ARG" ]; then
+        TARGET_PATH="projects/$TARGET_ARG"
+    else
+        TARGET_PATH="."
+    fi
+
+    # Jalankan scaffolder jika docker-compose.yml belum ada di target
+    if [ -d "$TARGET_PATH" ] && [ ! -f "$TARGET_PATH/docker-compose.yml" ]; then
+        "$DIR/docker/scaffold-project.sh" "$TARGET_PATH"
+    fi
+fi
+
+exit $EXIT_CODE
