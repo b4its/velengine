@@ -21,10 +21,15 @@ Keunggulan utama Vel Engine: setiap kali Anda membuat projek baru menggunakan `l
    - Mengonfigurasi file `.env` dan `.env.example` seketika untuk langsung terhubung ke service database MySQL (`db`) dan Redis (`redis`).
    - Memodifikasi `vite.config.js` secara otomatis agar Hot Module Replacement (HMR) bind ke `0.0.0.0` dan lancar diakses dari browser host.
 
-2. **Alokasi Port Acak / Random (Bebas Port Inti Sistem)**:
+2. **Alokasi Port Acak & Eliminasi Port Terdaftar**:
    - Port setiap service (`APP_PORT`, `VITE_PORT`, `DB_PORT`, `PMA_PORT`, `REDIS_PORT`) dialokasikan secara **acak/random** pada rentang aman **`15000 - 49999`**.
-   - **Bebas Port Inti Sistem**: Sistem secara ketat melarang penggunaan port sistem/inti (`< 1024`, `3306`, `5432`, `6379`, `8000`, `8080`, `5173`, `8099`, dll.).
-   - Setiap port yang dipilih diuji secara realtime melalui socket binding pada `0.0.0.0` dan `127.0.0.1` sehingga dijamin 100% bebas bentrok antar-projek.
+   - **Eliminasi Port Terdaftar Secara Menyeluruh**:
+     - Memindai dan mengeliminasi seluruh port yang terdaftar pada **`docker ps -a`** (baik container aktif maupun berhenti).
+     - Mengeliminasi seluruh port listening aktif dari sistem host melalui **`ss -tuln`**.
+     - Mengeliminasi port aktif langsung dari kernel Linux (**`/proc/net/tcp`** dan **`/proc/net/tcp6`**).
+     - Memindai seluruh konfigurasi `.env` projek lain di dalam folder `projects/` agar tidak terjadi bentrok antar-projek.
+   - **Bebas Port Inti Sistem**: Menyingkirkan seluruh port sistem (`< 1024`) serta port standar seperti `3306`, `5432`, `6379`, `8000`, `8080`, `5173`, `8099`, dll.
+   - Setiap port yang dipilih diuji secara realtime melalui socket binding pada `0.0.0.0` dan `127.0.0.1` sehingga dijamin 100% bebas bentrok.
 
 3. **Deteksi Perangkat & Otomatisasi Firewall Linux**:
    - Sistem secara otomatis memeriksa OS / perangkat pengguna (`uname -s`).
@@ -53,7 +58,7 @@ Layanan mesin utama dikonfigurasi dengan rumus alokasi **`Port Standar + 99`** u
 | **Redis Cache & Queue** | `6379` | `6379 + 99` | **`6478`** | `127.0.0.1:6478` |
 
 > [!NOTE]
-> Setiap projek baru yang dibuat di dalam folder `projects/` akan mendapatkan alokasi port **acak / random** (rentang `15000 - 49999`) dan dilarang memakai port inti sistem. Sistem juga otomatis mendeteksi firewall Linux (`UFW` / `firewalld`) dan mengizinkan port tersebut agar siap diakses.
+> Setiap projek baru yang dibuat di dalam folder `projects/` akan mendapatkan alokasi port **acak / random** (rentang `15000 - 49999`) yang telah difilter secara ketat untuk mengeliminasi port dari `docker ps -a`, `ss -tuln`, `/proc/net/tcp`, file `.env` projek lain, dan port inti sistem. Sistem juga otomatis mendeteksi firewall Linux (`UFW` / `firewalld`) dan mengizinkan port tersebut agar langsung siap digunakan.
 
 ---
 

@@ -65,35 +65,102 @@ DB_NAME=$(echo "$PROJECT_NAME" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9
 
 # ==============================================================================
 # Random Non-System Port Generation (15000 - 49999)
-# Avoids all core/system ports (<1024, 3306, 5432, 6379, 8000, 8080, 5173, etc.)
+# Actively eliminates all ports registered in:
+# 1. 'docker ps -a' mapped ports
+# 2. 'ss -tuln' active listening ports
+# 3. Linux kernel /proc/net/tcp and /proc/net/tcp6
+# 4. Configured .env files in projects/ and root
+# 5. Core/system reserved ports (<1024, 3306, 5432, 6379, 8000, 8080, 5173, etc.)
 # ==============================================================================
 get_random_ports() {
+    local base_dir="$MACHINE_DIR"
+    if [ ! -d "$base_dir" ]; then
+        base_dir="."
+    fi
+
     if command -v python3 >/dev/null 2>&1; then
         python3 -c "
-import random, socket
+import subprocess, re, glob, os, random, socket
 
-RESERVED_PORTS = {
-    80, 443, 21, 22, 23, 25, 53, 3306, 3307, 3405, 5173, 5272, 5432, 6379, 
-    6380, 6478, 8000, 8001, 8002, 8080, 8081, 8099, 8179, 9000, 27017, 3000, 3001
+excluded = set()
+
+# 1. Reserved / core system ports (<1024 and common server ports)
+RESERVED = {
+    21, 22, 23, 25, 53, 80, 443, 3000, 3001, 3306, 3307, 3405, 3514, 5000, 5173, 5272, 
+    5296, 5432, 5434, 5558, 6379, 6380, 6478, 6505, 8000, 8001, 8002, 8080, 8081, 8099, 
+    8179, 8422, 9000, 27017, 33060
 }
+excluded.update(RESERVED)
 
-def pick_port(allocated):
-    for _ in range(1000):
+# 2. Extract ports registered in 'docker ps -a'
+try:
+    res = subprocess.check_output(['docker', 'ps', '-a', '--format', '{{.Ports}}'], text=True, stderr=subprocess.DEVNULL)
+    for p in re.findall(r':(\d+)->', res):
+        excluded.add(int(p))
+except Exception:
+    pass
+
+# 3. Extract active listening ports via 'ss -tuln'
+try:
+    res = subprocess.check_output(['ss', '-tuln'], text=True, stderr=subprocess.DEVNULL)
+    for p in re.findall(r':(\d+)\s+', res):
+        excluded.add(int(p))
+except Exception:
+    pass
+
+# 4. Extract listening ports from Linux kernel /proc/net/tcp & tcp6
+for proc_path in ['/proc/net/tcp', '/proc/net/tcp6']:
+    try:
+        with open(proc_path) as f:
+            for line in f.readlines()[1:]:
+                parts = line.strip().split()
+                if len(parts) > 1:
+                    port_hex = parts[1].split(':')[1]
+                    excluded.add(int(port_hex, 16))
+    except Exception:
+        pass
+
+# 5. Extract ports configured in existing projects/*/.env and ./.env
+base_dir = '$base_dir'
+env_patterns = [
+    os.path.join(base_dir, 'projects', '*', '.env'),
+    os.path.join(base_dir, 'projects', '*', '.env.example'),
+    os.path.join(base_dir, '.env'),
+    os.path.join(base_dir, '.env.example'),
+]
+for pattern in env_patterns:
+    for env_file in glob.glob(pattern):
+        try:
+            with open(env_file) as f:
+                for line in f:
+                    m = re.search(r'_PORT=(\d+)', line)
+                    if m:
+                        excluded.add(int(m.group(1)))
+        except Exception:
+            pass
+
+def pick_port(alloc):
+    for _ in range(3000):
         p = random.randint(15000, 49999)
-        if p in RESERVED_PORTS or p in allocated or p < 1024:
+        if p in excluded or p in alloc or p < 1024:
             continue
+        # Socket bind test 0.0.0.0
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             try:
                 s.bind(('0.0.0.0', p))
             except OSError:
+                excluded.add(p)
                 continue
+        # Socket bind test 127.0.0.1
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             try:
                 s.bind(('127.0.0.1', p))
             except OSError:
+                excluded.add(p)
                 continue
+        alloc.add(p)
         return p
     return random.randint(15000, 49999)
 
@@ -103,22 +170,77 @@ print(' '.join(str(p) for p in ports))
 "
     elif command -v php >/dev/null 2>&1; then
         php -r "
-\$reserved = array_flip([
-    80, 443, 21, 22, 23, 25, 53, 3306, 3307, 3405, 5173, 5272, 5432, 6379, 
-    6380, 6478, 8000, 8001, 8002, 8080, 8081, 8099, 8179, 9000, 27017, 3000, 3001
+\$excluded = array_flip([
+    21, 22, 23, 25, 53, 80, 443, 3000, 3001, 3306, 3307, 3405, 3514, 5000, 5173, 5272, 
+    5296, 5432, 5434, 5558, 6379, 6380, 6478, 6505, 8000, 8001, 8002, 8080, 8081, 8099, 
+    8179, 8422, 9000, 27017, 33060
 ]);
 
-\$allocated = [];
-while (count(\$allocated) < 5) {
-    \$p = rand(15000, 49999);
-    if (\$p < 1024 || isset(\$reserved[\$p]) || in_array(\$p, \$allocated)) continue;
-    \$s = @stream_socket_server('tcp://0.0.0.0:' . \$p);
-    if (\$s) {
-        fclose(\$s);
-        \$allocated[] = \$p;
+// 1. Docker ps -a
+\$docker_out = @shell_exec('docker ps -a --format \"{{.Ports}}\" 2>/dev/null');
+if (\$docker_out && preg_match_all('/:(\d+)->/', \$docker_out, \$matches)) {
+    foreach (\$matches[1] as \$p) \$excluded[(int)\$p] = true;
+}
+
+// 2. ss -tuln
+\$ss_out = @shell_exec('ss -tuln 2>/dev/null');
+if (\$ss_out && preg_match_all('/:(\d+)\s+/', \$ss_out, \$matches)) {
+    foreach (\$matches[1] as \$p) \$excluded[(int)\$p] = true;
+}
+
+// 3. /proc/net/tcp & tcp6
+foreach (['/proc/net/tcp', '/proc/net/tcp6'] as \$proc_path) {
+    if (file_exists(\$proc_path)) {
+        \$lines = @file(\$proc_path);
+        if (\$lines) {
+            foreach (array_slice(\$lines, 1) as \$line) {
+                \$parts = preg_split('/\s+/', trim(\$line));
+                if (isset(\$parts[1])) {
+                    \$addr = explode(':', \$parts[1]);
+                    if (isset(\$addr[1])) {
+                        \$excluded[hexdec(\$addr[1])] = true;
+                    }
+                }
+            }
+        }
     }
 }
-echo implode(' ', \$allocated);
+
+// 4. Configured .env files
+\$base_dir = '$base_dir';
+\$env_files = array_merge(
+    glob(\$base_dir . '/projects/*/.env') ?: [],
+    glob(\$base_dir . '/projects/*/.env.example') ?: [],
+    glob(\$base_dir . '/.env') ?: [],
+    glob(\$base_dir . '/.env.example') ?: []
+);
+foreach (\$env_files as \$ef) {
+    \$content = @file_get_contents(\$ef);
+    if (\$content && preg_match_all('/_PORT=(\d+)/', \$content, \$matches)) {
+        foreach (\$matches[1] as \$p) \$excluded[(int)\$p] = true;
+    }
+}
+
+function pick_port(&\$excluded) {
+    for (\$i = 0; \$i < 3000; \$i++) {
+        \$p = rand(15000, 49999);
+        if (\$p < 1024 || isset(\$excluded[\$p])) continue;
+        \$s = @stream_socket_server('tcp://0.0.0.0:' . \$p);
+        if (\$s) {
+            fclose(\$s);
+            \$excluded[\$p] = true;
+            return \$p;
+        }
+        \$excluded[\$p] = true;
+    }
+    return rand(15000, 49999);
+}
+
+\$ports = [];
+for (\$i = 0; \$i < 5; \$i++) {
+    \$ports[] = pick_port(\$excluded);
+}
+echo implode(' ', \$ports);
 "
     else
         local p1=$((15000 + RANDOM % 30000))
@@ -130,7 +252,8 @@ echo implode(' ', \$allocated);
     fi
 }
 
-echo -e "${C_CYAN}Mengalokasikan port Docker acak/random (rentang 15000-49999, bebas port inti sistem)...${C_RESET}"
+echo -e "${C_CYAN}Mengalokasikan port Docker acak/random (rentang 15000-49999)...${C_RESET}"
+echo -e "${C_CYAN}Mengeliminasi port dari: docker ps, ss/netstat, kernel proc, dan .env proyek lain...${C_RESET}"
 RANDOM_PORTS=($(get_random_ports))
 APP_PORT="${RANDOM_PORTS[0]}"
 VITE_PORT="${RANDOM_PORTS[1]}"
