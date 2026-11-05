@@ -81,6 +81,13 @@ if [ $EXIT_CODE -eq 0 ] && [ $IS_NEW -eq 1 ]; then
     if [ -d "$TARGET_PATH" ] && [ ! -f "$TARGET_PATH/docker-compose.yml" ]; then
         "$DIR/docker/scaffold-project.sh" "$TARGET_PATH"
     fi
+
+    # Eksekusi firewall helper di host OS jika ada file marker .firewall_ports
+    if [ -f "$TARGET_PATH/.firewall_ports" ]; then
+        FW_ARGS=$(cat "$TARGET_PATH/.firewall_ports")
+        "$DIR/docker/firewall-helper.sh" $FW_ARGS
+        rm -f "$TARGET_PATH/.firewall_ports"
+    fi
 fi
 
 exit $EXIT_CODE

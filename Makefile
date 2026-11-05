@@ -184,6 +184,10 @@ new: ## Buat projek Laravel baru di dalam folder projects/ (Contoh: make new PRO
 	fi; \
 	if [ -d "projects/$$clean_name" ] && [ ! -f "projects/$$clean_name/docker-compose.yml" ]; then \
 		./docker/scaffold-project.sh "projects/$$clean_name"; \
+	fi; \
+	if [ -f "projects/$$clean_name/.firewall_ports" ]; then \
+		./docker/firewall-helper.sh $$(cat "projects/$$clean_name/.firewall_ports"); \
+		rm -f "projects/$$clean_name/.firewall_ports"; \
 	fi
 
 .PHONY: new-here

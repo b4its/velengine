@@ -18,15 +18,24 @@ Keunggulan utama Vel Engine: setiap kali Anda membuat projek baru menggunakan `l
 1. **Auto-Scaffolding Docker & Makefile Otomatis**:
    - Menghasilkan arsitektur container lengkap: `docker-compose.yml`, `Dockerfile`, `docker/nginx/default.conf`, `docker/php/php.ini`, `docker/entrypoint.sh`, `.dockerignore`, dan `Makefile`.
    - Menata seluruh projek baru ke dalam folder terisolasi: **`projects/<nama_projek>`**.
-   - Mengalokasikan port Docker yang tersedia di komputer host secara realtime tanpa risiko bentrok (*port conflict-free*).
    - Mengonfigurasi file `.env` dan `.env.example` seketika untuk langsung terhubung ke service database MySQL (`db`) dan Redis (`redis`).
    - Memodifikasi `vite.config.js` secara otomatis agar Hot Module Replacement (HMR) bind ke `0.0.0.0` dan lancar diakses dari browser host.
 
-2. **Dua Mode Eksekusi Fleksibel**:
+2. **Alokasi Port Acak / Random (Bebas Port Inti Sistem)**:
+   - Port setiap service (`APP_PORT`, `VITE_PORT`, `DB_PORT`, `PMA_PORT`, `REDIS_PORT`) dialokasikan secara **acak/random** pada rentang aman **`15000 - 49999`**.
+   - **Bebas Port Inti Sistem**: Sistem secara ketat melarang penggunaan port sistem/inti (`< 1024`, `3306`, `5432`, `6379`, `8000`, `8080`, `5173`, `8099`, dll.).
+   - Setiap port yang dipilih diuji secara realtime melalui socket binding pada `0.0.0.0` dan `127.0.0.1` sehingga dijamin 100% bebas bentrok antar-projek.
+
+3. **Deteksi Perangkat & Otomatisasi Firewall Linux**:
+   - Sistem secara otomatis memeriksa OS / perangkat pengguna (`uname -s`).
+   - **Jika Linux**: Mendeteksi firewall aktif (**UFW**, **firewalld**, atau **iptables**) dan otomatis mengonfigurasi aturan firewall untuk membuka port yang dialokasikan agar tidak bentrok atau terblokir.
+   - **Jika Non-Linux (macOS / Windows)**: Konfigurasi firewall dilewati secara otomatis tanpa gangguan (*gracefully skipped*).
+
+4. **Dua Mode Eksekusi Fleksibel**:
    - **Mode Mandiri (Stand-Alone)**: Masuk ke folder projek (`cd projects/<nama_projek>`) lalu jalankan `make up`. Projek berjalan sepenuhnya di container dan network miliknya sendiri.
    - **Mode Terpusat (Vel Engine Core)**: Tetapkan `PROJECT_DIR=projects/<nama_projek>` di file `.env` utama, lalu disajikan langsung melalui Nginx Vel Engine di port `8099`.
 
-3. **Command Center Makefile Lengkap & Interaktif**:
+5. **Command Center Makefile Lengkap & Interaktif**:
    - Tersedia puluhan perintah developer berwarna untuk lifecycle container, akses shell PHP & MySQL, migrate, seed, tinker, artisan, composer, npm, hingga perbaikan hak akses permission folder.
 
 ---
@@ -44,7 +53,7 @@ Layanan mesin utama dikonfigurasi dengan rumus alokasi **`Port Standar + 99`** u
 | **Redis Cache & Queue** | `6379` | `6379 + 99` | **`6478`** | `127.0.0.1:6478` |
 
 > [!NOTE]
-> Projek baru yang dibuat di dalam folder `projects/` akan secara cerdas memprioritaskan port default standar (`8000`, `5173`, `3306`, `8080`, `6379`) atau mencari port bebas berikutnya jika port tersebut sedang aktif.
+> Setiap projek baru yang dibuat di dalam folder `projects/` akan mendapatkan alokasi port **acak / random** (rentang `15000 - 49999`) dan dilarang memakai port inti sistem. Sistem juga otomatis mendeteksi firewall Linux (`UFW` / `firewalld`) dan mengizinkan port tersebut agar siap diakses.
 
 ---
 
@@ -56,6 +65,7 @@ machine/
 │   ├── nginx/templates/default.conf.template  # Template Nginx reverse proxy engine
 │   ├── php/php.ini                            # Konfigurasi PHP runtime
 │   ├── entrypoint.sh                          # Docker runtime entrypoint
+│   ├── firewall-helper.sh                     # Deteksi OS & pembuka firewall Linux
 │   ├── laravel-wrapper.sh                     # Interceptor installer di container
 │   └── scaffold-project.sh                    # Engine auto-scaffold Docker & Makefile
 ├── projects/                                  # Tempat seluruh hasil projek disimpan

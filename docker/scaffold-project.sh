@@ -63,59 +63,96 @@ DB_NAME=$(echo "$PROJECT_NAME" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9
 [ -z "$COMPOSE_NAME" ] && COMPOSE_NAME="laravel-app"
 [ -z "$DB_NAME" ] && DB_NAME="laravel_app"
 
-# Function to find next available port
-find_port() {
-    local base_port=$1
-    local exclude_ports="$2"
-
+# ==============================================================================
+# Random Non-System Port Generation (15000 - 49999)
+# Avoids all core/system ports (<1024, 3306, 5432, 6379, 8000, 8080, 5173, etc.)
+# ==============================================================================
+get_random_ports() {
     if command -v python3 >/dev/null 2>&1; then
         python3 -c "
-import socket
-start = $base_port
-excluded = [int(p) for p in '$exclude_ports'.split() if p.isdigit()]
-for p in range(start, start + 100):
-    if p in excluded:
-        continue
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        try:
-            s.bind(('0.0.0.0', p))
-            print(p)
-            break
-        except OSError:
+import random, socket
+
+RESERVED_PORTS = {
+    80, 443, 21, 22, 23, 25, 53, 3306, 3307, 3405, 5173, 5272, 5432, 6379, 
+    6380, 6478, 8000, 8001, 8002, 8080, 8081, 8099, 8179, 9000, 27017, 3000, 3001
+}
+
+def pick_port(allocated):
+    for _ in range(1000):
+        p = random.randint(15000, 49999)
+        if p in RESERVED_PORTS or p in allocated or p < 1024:
             continue
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            try:
+                s.bind(('0.0.0.0', p))
+            except OSError:
+                continue
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            try:
+                s.bind(('127.0.0.1', p))
+            except OSError:
+                continue
+        return p
+    return random.randint(15000, 49999)
+
+alloc = set()
+ports = [pick_port(alloc) for _ in range(5)]
+print(' '.join(str(p) for p in ports))
 "
     elif command -v php >/dev/null 2>&1; then
         php -r "
-\$start = $base_port;
-\$excluded = array_filter(explode(' ', '$exclude_ports'));
-for (\$p = \$start; \$p < \$start + 100; \$p++) {
-    if (in_array(\$p, \$excluded)) continue;
+\$reserved = array_flip([
+    80, 443, 21, 22, 23, 25, 53, 3306, 3307, 3405, 5173, 5272, 5432, 6379, 
+    6380, 6478, 8000, 8001, 8002, 8080, 8081, 8099, 8179, 9000, 27017, 3000, 3001
+]);
+
+\$allocated = [];
+while (count(\$allocated) < 5) {
+    \$p = rand(15000, 49999);
+    if (\$p < 1024 || isset(\$reserved[\$p]) || in_array(\$p, \$allocated)) continue;
     \$s = @stream_socket_server('tcp://0.0.0.0:' . \$p);
     if (\$s) {
         fclose(\$s);
-        echo \$p;
-        break;
+        \$allocated[] = \$p;
     }
 }
+echo implode(' ', \$allocated);
 "
     else
-        echo "$base_port"
+        local p1=$((15000 + RANDOM % 30000))
+        local p2=$((15000 + RANDOM % 30000))
+        local p3=$((15000 + RANDOM % 30000))
+        local p4=$((15000 + RANDOM % 30000))
+        local p5=$((15000 + RANDOM % 30000))
+        echo "$p1 $p2 $p3 $p4 $p5"
     fi
 }
 
-echo -e "${C_CYAN}Memeriksa dan mengalokasikan port Docker yang tersedia...${C_RESET}"
-APP_PORT=$(find_port 8000 "")
-VITE_PORT=$(find_port 5173 "$APP_PORT")
-DB_PORT=$(find_port 3306 "$APP_PORT $VITE_PORT")
-PMA_PORT=$(find_port 8080 "$APP_PORT $VITE_PORT $DB_PORT")
-REDIS_PORT=$(find_port 6379 "$APP_PORT $VITE_PORT $DB_PORT $PMA_PORT")
+echo -e "${C_CYAN}Mengalokasikan port Docker acak/random (rentang 15000-49999, bebas port inti sistem)...${C_RESET}"
+RANDOM_PORTS=($(get_random_ports))
+APP_PORT="${RANDOM_PORTS[0]}"
+VITE_PORT="${RANDOM_PORTS[1]}"
+DB_PORT="${RANDOM_PORTS[2]}"
+PMA_PORT="${RANDOM_PORTS[3]}"
+REDIS_PORT="${RANDOM_PORTS[4]}"
 
-echo -e "  • APP_PORT   : ${C_BOLD}$APP_PORT${C_RESET}"
-echo -e "  • VITE_PORT  : ${C_BOLD}$VITE_PORT${C_RESET}"
-echo -e "  • DB_PORT    : ${C_BOLD}$DB_PORT${C_RESET}"
-echo -e "  • PMA_PORT   : ${C_BOLD}$PMA_PORT${C_RESET}"
-echo -e "  • REDIS_PORT : ${C_BOLD}$REDIS_PORT${C_RESET}"
+echo -e "  • Web App (Nginx) : ${C_BOLD}$APP_PORT${C_RESET} (Random)"
+echo -e "  • Vite Dev (HMR)  : ${C_BOLD}$VITE_PORT${C_RESET} (Random)"
+echo -e "  • MySQL Database  : ${C_BOLD}$DB_PORT${C_RESET} (Random)"
+echo -e "  • phpMyAdmin      : ${C_BOLD}$PMA_PORT${C_RESET} (Random)"
+echo -e "  • Redis Cache     : ${C_BOLD}$REDIS_PORT${C_RESET} (Random)"
+
+# Simpan marker port untuk eksekusi firewall di host OS
+echo "$PROJECT_NAME $APP_PORT $VITE_PORT $DB_PORT $PMA_PORT $REDIS_PORT" > "$TARGET_DIR/.firewall_ports"
+
+# Jalankan firewall helper jika running di host
+if [ ! -f /.dockerenv ]; then
+    if [ -x "$MACHINE_DIR/docker/firewall-helper.sh" ]; then
+        "$MACHINE_DIR/docker/firewall-helper.sh" "$PROJECT_NAME" "$APP_PORT" "$VITE_PORT" "$DB_PORT" "$PMA_PORT" "$REDIS_PORT"
+    fi
+fi
 
 # 1. Copy docker folders & configs
 echo -e "${C_CYAN}Menyusun struktur Docker untuk '$PROJECT_NAME'...${C_RESET}"
