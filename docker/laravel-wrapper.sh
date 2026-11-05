@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# Container Laravel CLI Wrapper
+# Vel Engine - Container Laravel CLI Wrapper
 # Intercepts 'laravel new' to automatically save to projects/ and scaffold Docker & Makefile
 # ==============================================================================
 REAL_LARAVEL="/usr/local/composer/vendor/laravel/installer/bin/laravel"

@@ -1,124 +1,188 @@
-# Oryphem Laravel Engine
+# Vel Engine - Laravel Engine
 
-Setup container lengkap dan mandiri untuk ekosistem Laravel modern dengan **PHP 8.4 terbaru**, **Laravel Installer CLI**, **Node.js 22 LTS**, **Composer terbaru**, **MySQL 8.4**, **Redis**, dan **phpMyAdmin**.
+[![PHP Version](https://img.shields.io/badge/PHP-8.4-777BB4?style=flat&logo=php&logoColor=white)](https://www.php.net/)
+[![Laravel](https://img.shields.io/badge/Laravel-12.x-FF2D20?style=flat&logo=laravel&logoColor=white)](https://laravel.com/)
+[![Docker](https://img.shields.io/badge/Docker-Enabled-2496ED?style=flat&logo=docker&logoColor=white)](https://www.docker.com/)
+[![Node.js](https://img.shields.io/badge/Node.js-22_LTS-5FA04E?style=flat&logo=node.js&logoColor=white)](https://nodejs.org/)
+[![MySQL](https://img.shields.io/badge/MySQL-8.4-4479A1?style=flat&logo=mysql&logoColor=white)](https://www.mysql.com/)
+[![Redis](https://img.shields.io/badge/Redis-7_Alpine-DC382D?style=flat&logo=redis&logoColor=white)](https://redis.io/)
 
-Tiap kali Anda menjalankan perintah **`laravel new <nama_projek>`**, sistem akan **secara otomatis membuatkan setup Docker lengkap** (Nginx, PHP-FPM, MySQL 8.4, Redis, phpMyAdmin, Node/NPM) serta **Makefile mandiri** dengan seluruh perintah lengkap (`make up`, `down`, `shell-php`, `shell-db`, dll.) di dalam projek baru tersebut!
+**Vel Engine** adalah platform runtime, generator, dan development environment terintegrasi berbasis Docker untuk ekosistem modern Laravel. Dilengkapi dengan **PHP 8.4-FPM**, **Laravel Installer CLI**, **Composer terbaru**, **Node.js 22 LTS**, **MySQL 8.4**, **Redis**, dan **phpMyAdmin**.
+
+Keunggulan utama Vel Engine: setiap kali Anda membuat projek baru menggunakan `laravel new` atau `make new`, engine akan **secara otomatis membuatkan setup Docker mandiri** (Nginx, PHP-FPM, MySQL, PMA, Redis, Vite) beserta **Makefile lengkap** di dalam subfolder **`projects/<nama_projek>`**.
 
 ---
 
 ## ⚡ Fitur Utama
 
-1. **Auto-Scaffold Docker & Makefile saat `laravel new`**:
-   - Menghasilkan `docker-compose.yml`, `Dockerfile`, `docker/nginx/default.conf`, `docker/php/php.ini`, `docker/entrypoint.sh`, `.dockerignore`, dan `Makefile`.
-   - Mengalokasikan port Docker bebas konflik secara otomatis.
-   - Mengonfigurasi file `.env` dan `.env.example` langsung terhubung ke database `db` (MySQL) dan `redis`.
-   - Mengonfigurasi `vite.config.js` untuk Hot Module Replacement (HMR) Docker.
-2. **Mandiri & Fleksibel**:
-   - Projek baru dapat dijalankan langsung secara mandiri (`cd <nama_projek> && make up`).
-   - Atau disajikan melalui mesin utama ini (`PROJECT_DIR=<nama_projek> make up`).
-3. **Makefile Lengkap & Berwarna**:
-   - Menyediakan perintah developer terpadu: `make up`, `down`, `shell-php`, `shell-db`, `mysql`, `shell-nginx`, `shell-redis`, `dev`, `artisan`, `composer`, `npm`, `migrate`, `logs`, dan banyak lagi.
+1. **Auto-Scaffolding Docker & Makefile Otomatis**:
+   - Menghasilkan arsitektur container lengkap: `docker-compose.yml`, `Dockerfile`, `docker/nginx/default.conf`, `docker/php/php.ini`, `docker/entrypoint.sh`, `.dockerignore`, dan `Makefile`.
+   - Menata seluruh projek baru ke dalam folder terisolasi: **`projects/<nama_projek>`**.
+   - Mengalokasikan port Docker yang tersedia di komputer host secara realtime tanpa risiko bentrok (*port conflict-free*).
+   - Mengonfigurasi file `.env` dan `.env.example` seketika untuk langsung terhubung ke service database MySQL (`db`) dan Redis (`redis`).
+   - Memodifikasi `vite.config.js` secara otomatis agar Hot Module Replacement (HMR) bind ke `0.0.0.0` dan lancar diakses dari browser host.
+
+2. **Dua Mode Eksekusi Fleksibel**:
+   - **Mode Mandiri (Stand-Alone)**: Masuk ke folder projek (`cd projects/<nama_projek>`) lalu jalankan `make up`. Projek berjalan sepenuhnya di container dan network miliknya sendiri.
+   - **Mode Terpusat (Vel Engine Core)**: Tetapkan `PROJECT_DIR=projects/<nama_projek>` di file `.env` utama, lalu disajikan langsung melalui Nginx Vel Engine di port `8099`.
+
+3. **Command Center Makefile Lengkap & Interaktif**:
+   - Tersedia puluhan perintah developer berwarna untuk lifecycle container, akses shell PHP & MySQL, migrate, seed, tinker, artisan, composer, npm, hingga perbaikan hak akses permission folder.
 
 ---
 
-## 📌 Alokasi Port Mesin Utama ({Port Standar} + 99)
+## 📌 Alokasi Port Vel Engine Utama ({Port Standar} + 99)
 
-| Layanan | Port Standar | Rumus | Port Host Aktif | Akses URL / Host |
+Layanan mesin utama dikonfigurasi dengan rumus alokasi **`Port Standar + 99`** untuk menjamin tidak bertabrakan dengan service bawaan di komputer host:
+
+| Layanan | Port Standar | Rumus Alokasi | Port Host Aktif | Akses URL / Endpoint |
 | :--- | :---: | :---: | :---: | :--- |
-| **Web Application (Nginx / App)** | `8000` | `8000 + 99` | **`8099`** | [http://localhost:8099](http://localhost:8099) |
+| **Web Application (Nginx)** | `8000` | `8000 + 99` | **`8099`** | [http://localhost:8099](http://localhost:8099) |
 | **Vite Dev Server (HMR)** | `5173` | `5173 + 99` | **`5272`** | [http://localhost:5272](http://localhost:5272) |
 | **MySQL Database** | `3306` | `3306 + 99` | **`3405`** | `127.0.0.1:3405` |
 | **phpMyAdmin (GUI DB)** | `8080` | `8080 + 99` | **`8179`** | [http://localhost:8179](http://localhost:8179) |
 | **Redis Cache & Queue** | `6379` | `6379 + 99` | **`6478`** | `127.0.0.1:6478` |
 
-*(Projek baru yang digenerate otomatis menggunakan port standar yang tersedia seperti 8000, 5173, 3306, 8080, 6379 atau port berikutnya jika sudah terpakai).*
+> [!NOTE]
+> Projek baru yang dibuat di dalam folder `projects/` akan secara cerdas memprioritaskan port default standar (`8000`, `5173`, `3306`, `8080`, `6379`) atau mencari port bebas berikutnya jika port tersebut sedang aktif.
+
+---
+
+## 📂 Struktur Direktori
+
+```text
+machine/
+├── docker/
+│   ├── nginx/templates/default.conf.template  # Template Nginx reverse proxy engine
+│   ├── php/php.ini                            # Konfigurasi PHP runtime
+│   ├── entrypoint.sh                          # Docker runtime entrypoint
+│   ├── laravel-wrapper.sh                     # Interceptor installer di container
+│   └── scaffold-project.sh                    # Engine auto-scaffold Docker & Makefile
+├── projects/                                  # Tempat seluruh hasil projek disimpan
+│   └── .gitkeep
+├── templates/
+│   └── project/                               # Blueprint Docker & Makefile untuk projek baru
+│       ├── docker/
+│       │   ├── nginx/default.conf
+│       │   ├── php/php.ini
+│       │   └── entrypoint.sh
+│       ├── .dockerignore
+│       ├── docker-compose.yml.stub
+│       ├── Dockerfile.stub
+│       └── Makefile.stub
+├── docker-compose.yml                         # Stack utama Vel Engine
+├── Dockerfile                                 # Image PHP 8.4 + Node 22 + Composer
+├── Makefile                                   # Command Center Vel Engine
+├── laravel                                    # CLI wrapper installer untuk host
+├── .env                                       # Environment konfigurasi Vel Engine
+├── .env.example
+└── README.md
+```
 
 ---
 
 ## 🚀 Cara Membuat Projek Laravel Baru
 
-Tersedia beberapa cara praktis sesuai preferensi Anda. Setiap cara akan **otomatis menghasilkan setup Docker & Makefile**:
+Vel Engine menyediakan berbagai metode praktis. Apapun metode yang dipilih, **setup Docker & Makefile akan dibuatkan secara otomatis**:
 
-### Cara 1: Menggunakan Script Wrapper `./laravel` (Rekomendasi)
-Di terminal host, jalankan perintah:
+### Cara 1: Menggunakan Makefile (Rekomendasi)
+```bash
+# Buat projek baru (otomatis tersimpan di folder projects/):
+make new PROJECT=toko-online
+
+# Dengan opsi tambahan installer (contoh: starter kit atau pest):
+make new PROJECT=portal-berita ARGS="--pest"
+```
+
+### Cara 2: Menggunakan Wrapper Script Host (`./laravel`)
 ```bash
 ./laravel new nama_projek
 ```
-> **Tip:** Anda bisa membuat alias di `~/.bashrc` atau `~/.zshrc`:
+> [!TIP]
+> Anda dapat menambahkan alias di `~/.bashrc` atau `~/.zshrc`:
 > ```bash
 > alias laravel="$PWD/laravel"
 > ```
-> Setelah itu Anda cukup menjalankan `laravel new nama_projek` dari mana saja.
+> Setelah itu, Anda dapat memanggil `laravel new nama_projek` langsung dari mana saja.
 
-### Cara 2: Menggunakan Makefile
-```bash
-# Menentukan nama langsung (otomatis disimpan di folder projects/):
-make new PROJECT=nama_projek
-
-# Atau inisialisasi langsung di folder root saat ini:
-make new-here
-```
-
-### Cara 3: Melalui Shell Container
+### Cara 3: Dari Dalam Shell Container
 ```bash
 make shell-php
 laravel new nama_projek
 ```
 
-Setelah proses selesai, projek baru akan langsung tersimpan di dalam folder `projects/<nama_projek>` lengkap dengan `docker-compose.yml`, `Dockerfile`, folder `docker/`, dan `Makefile`. Anda cukup berpindah ke direktori tersebut:
+### Cara 4: Inisialisasi di Root Saat Ini
+Jika Anda ingin meletakkan kode aplikasi langsung di folder root `machine`:
 ```bash
-cd projects/nama_projek
+make new-here
+```
+
+---
+
+## 💻 Menjalankan Projek Baru
+
+Setelah proses pembuatan selesai, pindah ke folder projek di dalam `projects/`:
+
+```bash
+cd projects/toko-online
+
+# 1. Nyalakan seluruh stack container (Nginx, PHP, MySQL, Redis, phpMyAdmin)
 make up
+
+# 2. Cek alokasi port dan URL akses
 make info
+
+# 3. Jalankan Vite development server (HMR)
+make dev
 ```
 
 ---
 
 ## 📋 Daftar Perintah Makefile Lengkap
 
-Jalankan `make` atau `make help` untuk melihat ringkasan perintah interaktif berwarna. Tersedia di mesin utama maupun di setiap projek yang digenerate:
+Jalankan `make` atau `make help` untuk melihat ringkasan perintah interaktif berwarna. Perintah berikut berlaku pada Vel Engine maupun pada setiap projek yang digenerate di folder `projects/`:
 
-### 1. Manajemen Siklus Hidup Container
+### 1. Siklus Hidup Container
 - `make up` : Nyalakan seluruh stack (Nginx, App PHP 8.4, MySQL, Redis, phpMyAdmin) di background.
 - `make down` : Matikan seluruh container (volume data MySQL & Redis tetap aman).
-- `make down-v` : Matikan container dan **hapus semua volume** data (reset database dari nol).
+- `make down-v` : Matikan container dan **hapus semua volume** data (reset total database).
 - `make restart` : Restart seluruh service container.
 - `make build` : Build ulang image container Dockerfile.
-- `make rebuild` : Build ulang image dari awal tanpa cache (`--no-cache`).
+- `make rebuild` : Build ulang image container dari awal tanpa cache (`--no-cache`).
 
-### 2. Status & Informasi Sistem
-- `make status` / `make ps` : Tampilkan tabel status container, status health, dan port mapping.
-- `make info` : Tampilkan ringkasan URL, port, kredensial database, serta rincian versi (PHP, Laravel, Composer, Node, NPM).
+### 2. Status & Informasi
+- `make status` / `make ps` : Tampilkan tabel status container, status healthcheck, dan port mapping.
+- `make info` : Tampilkan ringkasan URL, alokasi port aktif, kredensial database, serta rincian versi (PHP, Laravel, Composer, Node, NPM).
 
-### 3. Shell & Akses Terminal
-- `make shell-php` / `make shell` : Masuk ke terminal bash container PHP sebagai developer non-root (UID 1000).
-- `make shell-php-root` / `make root` : Masuk ke terminal bash container PHP sebagai `root`.
-- `make shell-db` : Masuk ke terminal bash di dalam container MySQL Database.
-- `make mysql` / `make db-cli` : Masuk langsung ke prompt interaktif MySQL CLI (`mysql -u... -p...`).
-- `make shell-nginx` : Masuk ke terminal shell container Nginx.
-- `make shell-redis` / `make redis-cli` : Masuk langsung ke interactive redis-cli.
+### 3. Akses Shell & Terminal
+- `make shell-php` / `make shell` : Buka interactive bash shell di container PHP sebagai developer non-root (UID 1000).
+- `make shell-php-root` / `make root` : Buka interactive bash shell di container PHP sebagai `root`.
+- `make shell-db` : Buka interactive bash terminal di container MySQL Database.
+- `make mysql` / `make db-cli` : Masuk langsung ke interactive prompt MySQL CLI (`mysql -u... -p...`).
+- `make shell-nginx` : Buka terminal shell di container Nginx.
+- `make shell-redis` / `make redis-cli` : Buka interactive session redis-cli.
 
 ### 4. Developer Tools, Artisan, Composer & NPM
 - `make artisan cmd="..."` : Jalankan perintah `php artisan` (contoh: `make artisan cmd="migrate"`).
 - `make art cmd="..."` : Alias ringkas untuk `make artisan`.
 - `make composer cmd="..."` : Jalankan perintah `composer` (contoh: `make composer cmd="require filament/filament"`).
 - `make npm cmd="..."` : Jalankan perintah `npm` (contoh: `make npm cmd="install"`).
-- `make dev` : Jalankan Vite development server (HMR) yang terekspos ke host.
+- `make dev` : Jalankan Vite development server (HMR) yang terhubung ke port host.
 - `make build-assets` : Build frontend assets untuk production (`npm run build`).
 - `make tinker` : Buka sesi interaktif Laravel Tinker.
-- `make test` : Jalankan unit test / Pest / PHPUnit.
+- `make test` : Jalankan unit test aplikasi (Pest / PHPUnit).
 - `make migrate` : Jalankan migrasi database (`php artisan migrate`).
-- `make migrate-fresh` : Jalankan migrasi ulang dari awal beserta seeder (`php artisan migrate:fresh --seed`).
+- `make migrate-fresh` : Reset database dan jalankan ulang semua migrasi beserta seeder (`migrate:fresh --seed`).
 - `make migrate-rollback` : Rollback batch migrasi terakhir.
 - `make seed` : Jalankan database seeder (`php artisan db:seed`).
 - `make key` : Generate application key baru (`php artisan key:generate`).
 - `make storage-link` : Buat symbolic link public storage (`php artisan storage:link`).
 - `make clear` : Bersihkan seluruh cache aplikasi Laravel (`optimize:clear`).
 - `make optimize` : Cache konfigurasi, route, dan view untuk performa maksimal.
-- `make perm` : Perbaiki permission folder `storage/` dan `bootstrap/cache/` (chmod 775, chown 1000:1000).
+- `make perm` : Perbaiki hak akses direktori `storage/` dan `bootstrap/cache/` (chmod 775, chown 1000:1000).
 
 ### 5. Logging & Pemantauan
-- `make logs` : Pantau log realtime seluruh container (Ctrl+C untuk keluar).
+- `make logs` : Pantau realtime log seluruh container (Ctrl+C untuk keluar).
 - `make logs-php` / `make logs-app` : Pantau log container PHP application.
 - `make logs-nginx` : Pantau log web server Nginx.
 - `make logs-db` : Pantau log database MySQL.
@@ -127,7 +191,7 @@ Jalankan `make` atau `make help` untuk melihat ringkasan perintah interaktif ber
 
 ---
 
-## 🗄️ Kredensial Database Mesin Utama
+## 🗄️ Kredensial Database Default Vel Engine
 
 - **Host (dari Host OS)**: `127.0.0.1`
 - **Host (dari dalam Container)**: `db`
@@ -136,3 +200,11 @@ Jalankan `make` atau `make help` untuk melihat ringkasan perintah interaktif ber
 - **Username**: `machine`
 - **Password**: `secret`
 - **Root Password**: `root`
+
+*(Untuk projek di dalam folder `projects/`, kredensial database diatur otomatis sesuai nama projek dan dapat dilihat melalui `make info` di direktori projek tersebut).*
+
+---
+
+## 📄 Lisensi
+
+Vel Engine didistribusikan di bawah lisensi [MIT](LICENSE).

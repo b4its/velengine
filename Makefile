@@ -1,5 +1,5 @@
 # ==============================================================================
-# Laravel Docker Machine — Makefile
+# Vel Engine - Laravel Engine — Makefile
 # Setup PHP 8.4 + Laravel CLI + MySQL + Redis + phpMyAdmin + Node/NPM
 # Seluruh port dikonfigurasi: {Port Standar} + 99
 # ==============================================================================
@@ -59,7 +59,7 @@ DOCKER_APP_EXEC := $(DOCKER_EXEC) -w $(APP_WORK_DIR) $(APP_SERVICE)
 .PHONY: help
 help: ## Tampilkan daftar lengkap perintah yang tersedia
 	@echo ""
-	@echo -e "  $(C_BOLD)$(C_CYAN)🚀 Laravel Docker Machine // Command Center$(C_RESET)"
+	@echo -e "  $(C_BOLD)$(C_CYAN)🚀 Vel Engine - Laravel Engine // Command Center$(C_RESET)"
 	@echo -e "  $(C_YELLOW)Port Formula: {Port Standar} + 99$(C_RESET)"
 	@echo "  ──────────────────────────────────────────────────────────────────"
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z0-9_-]+:.*?## / { \
@@ -132,7 +132,7 @@ ps: status
 .PHONY: info
 info: ## Tampilkan informasi lengkap port ({port}+99), URL, dan versi tools
 	@echo ""
-	@echo -e "  $(C_BOLD)$(C_CYAN)📌 INFORMASI SETUP & PORT ({Port Standar} + 99)$(C_RESET)"
+	@echo -e "  $(C_BOLD)$(C_CYAN)📌 INFORMASI SETUP & PORT — VEL ENGINE ({Port Standar} + 99)$(C_RESET)"
 	@echo "  ──────────────────────────────────────────────────────────────────"
 	@printf "  %-24s : \033[32m%s\033[0m (Standar: 8000 + 99)\n" "Web Application" "http://localhost:$(APP_PORT)"
 	@printf "  %-24s : \033[32m%s\033[0m (Standar: 8080 + 99)\n" "phpMyAdmin" "http://localhost:$(PMA_PORT)"

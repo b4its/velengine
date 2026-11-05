@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# Laravel Installer CLI Wrapper (Dockerized)
+# Vel Engine - Laravel Installer CLI Wrapper (Dockerized)
 # Jalankan langsung di host: ./laravel new <nama_projek>
 # Otomatis membuat projek di dalam folder projects/, setup Docker lengkap
 # (Nginx, PHP-FPM, MySQL, PMA, Redis, Node/NPM) serta Makefile.

@@ -1,6 +1,6 @@
 # ==============================================================================
 # Dockerfile: Complete PHP 8.4-FPM + Node.js 22 LTS + Composer Environment
-# Generated automatically by Laravel Docker Machine
+# Generated automatically by Vel Engine - Laravel Engine
 # ==============================================================================
 FROM php:8.4-fpm
 

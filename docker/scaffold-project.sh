@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# Laravel Docker Scaffolder
+# Vel Engine - Laravel Engine Scaffolder
 # Automatically scaffolds Docker environment (Nginx, PHP 8.4-FPM, MySQL 8.4,
 # phpMyAdmin, Redis, Node/NPM) and complete Makefile for new Laravel projects.
 # ==============================================================================
@@ -264,7 +264,7 @@ chmod -R 775 "$TARGET_DIR/storage" "$TARGET_DIR/bootstrap/cache" 2>/dev/null || 
 # 7. Print summary banner
 echo ""
 echo -e "  ${C_BOLD}${C_GREEN}════════════════════════════════════════════════════════════════════${C_RESET}"
-echo -e "  ${C_BOLD}${C_GREEN}🎉 SETUP DOCKER & MAKEFILE BERHASIL DIBUAT UNTUK: ${C_CYAN}$PROJECT_NAME${C_RESET}"
+echo -e "  ${C_BOLD}${C_GREEN}🎉 VEL ENGINE // SETUP DOCKER & MAKEFILE SIAP UNTUK: ${C_CYAN}$PROJECT_NAME${C_RESET}"
 echo -e "  ${C_BOLD}${C_GREEN}════════════════════════════════════════════════════════════════════${C_RESET}"
 echo -e "  ${C_BOLD}Layanan & Alokasi Port:${C_RESET}"
 echo -e "    • Web Application (Nginx) : ${C_GREEN}http://localhost:$APP_PORT${C_RESET}"

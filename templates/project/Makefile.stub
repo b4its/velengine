@@ -1,5 +1,5 @@
 # ==============================================================================
-# Laravel Docker Setup — Makefile
+# Vel Engine - Laravel Engine — Makefile
 # Project: __PROJECT_NAME__
 # Services: Nginx, PHP 8.4-FPM, MySQL 8.4, Redis, phpMyAdmin, Node/NPM
 # ==============================================================================
@@ -51,7 +51,7 @@ DOCKER_APP_EXEC := $(DOCKER_EXEC) -w /var/www/html $(APP_SERVICE)
 .PHONY: help
 help: ## Tampilkan daftar lengkap seluruh perintah yang tersedia
 	@echo ""
-	@echo -e "  $(C_BOLD)$(C_CYAN)🚀 __PROJECT_NAME__ // Docker Command Center$(C_RESET)"
+	@echo -e "  $(C_BOLD)$(C_CYAN)🚀 __PROJECT_NAME__ // Vel Engine Command Center$(C_RESET)"
 	@echo "  ──────────────────────────────────────────────────────────────────"
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z0-9_-]+:.*?## / { \
 		printf "  \033[32m%-22s\033[0m %s\n", $$1, $$2 \
